@@ -1,0 +1,39 @@
+{
+  "name": "byte-mnemonic",
+  "version": "0.1.0",
+  "description": "Like the NATO alphabet but for binary data. Each byte gets a unique four-letter word.",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "node --test src/*.test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mnemonic",
+    "binary",
+    "encoding",
+    "nato",
+    "phonetic",
+    "bytes",
+    "hex"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+

@@ -1,0 +1,14 @@
+[package]
+name = "byte-mnemonic"
+version = "0.1.0"
+edition = "2021"
+description = "Like the NATO alphabet but for binary data. Each byte gets a unique four-letter word."
+license = "MIT"
+repository = "https://github.com/your-username/byte-mnemonic"
+keywords = ["mnemonic", "encoding", "binary", "phonetic", "nato"]
+categories = ["encoding", "text-processing"]
+
+[dependencies]
+
+[dev-dependencies]
+
