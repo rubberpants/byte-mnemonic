@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Byte Mnemonic Converter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --accent: #388bfd;
+      --accent-dim: #1f6feb33;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --error: #f85149;
+      --success: #3fb950;
+      --mono: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+      --radius: 6px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    header {
+      max-width: 900px;
+      margin: 0 auto 32px;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+
+    header h1 span { color: var(--accent); }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .converter {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .format-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .format-bar label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .seg-control {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .seg-control button {
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      font-family: var(--mono);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .seg-control button:not(:last-child) {
+      border-right: 1px solid var(--border);
+    }
+
+    .seg-control button.active {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .io-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 0;
+      align-items: stretch;
+    }
+
+    .io-panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .io-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .io-panel-header span {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn {
+      padding: 3px 10px;
+      font-size: 0.75rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+
+    .btn:hover {
+      color: var(--text);
+      border-color: var(--text-muted);
+      background: var(--accent-dim);
+    }
+
+    .btn.copied {
+      color: var(--success);
+      border-color: var(--success);
+    }
+
+    textarea {
+      width: 100%;
+      flex: 1;
+      min-height: 160px;
+      padding: 14px;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      line-height: 1.6;
+      resize: vertical;
+    }
+
+    textarea::placeholder { color: var(--text-muted); opacity: 0.6; }
+    textarea[readonly] { color: var(--accent); cursor: default; }
+
+    .arrow-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      gap: 8px;
+    }
+
+    .arrow-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: default;
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 28px;
+      margin-top: 10px;
+      padding: 0 2px;
+    }
+
+    .status-bar .badge {
+      font-size: 0.75rem;
+      font-family: var(--mono);
+      padding: 2px 8px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .error-msg {
+      font-size: 0.8rem;
+      color: var(--error);
+      font-family: var(--mono);
+    }
+
+    .ref-section {
+      max-width: 900px;
+      margin: 32px auto 0;
+    }
+
+    details {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    summary {
+      padding: 12px 16px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.15s;
+    }
+
+    summary:hover { color: var(--text); }
+
+    summary::before {
+      content: "▶";
+      font-size: 0.6rem;
+      transition: transform 0.2s;
+    }
+
+    details[open] summary::before { transform: rotate(90deg); }
+
+    .ref-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 0;
+      padding: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .ref-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .ref-item:hover { background: var(--accent-dim); }
+
+    .ref-byte {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      min-width: 28px;
+    }
+
+    .ref-word {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    @media (max-width: 600px) {
+      .io-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow-col {
+        flex-direction: row;
+        padding: 8px 0;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Byte <span>Mnemonic</span></h1>
+  <p>Convert between binary data and human-readable words &mdash; like NATO phonetic, but for bytes.</p>
+</header>
+
+<div class="converter">
+  <div class="format-bar">
+    <label>Byte format</label>
+    <div class="seg-control" id="format-toggle">
+      <button class="active" data-format="hex">Hex</button>
+      <button data-format="text">UTF-8 text</button>
+    </div>
+  </div>
+
+  <div class="io-grid">
+    <div class="io-panel">
+      <div class="io-panel-header">
+        <span id="left-label">Hex bytes</span>
+        <div class="btn-row">
+          <button class="btn" id="copy-left">Copy</button>
+          <button class="btn" id="clear-left">Clear</button>
+        </div>
+      </div>
+      <textarea id="input-bytes" placeholder="e.g. 48 65 6c 6c 6f&#10;or: 0xDEADBEEF&#10;or: deadbeef" spellcheck="false"></textarea>
+    </div>
+
+    <div class="arrow-col">
+      <div class="arrow-btn" title="Auto-converting both directions">⇄</div>
+    </div>
+
+    <div class="io-panel">
+      <div class="io-panel-header">
+        <span>Mnemonic words</span>
+        <div class="btn-row">
+          <button class="btn" id="copy-right">Copy</button>
+          <button class="btn" id="clear-right">Clear</button>
+        </div>
+      </div>
+      <textarea id="input-words" placeholder="e.g. FILM EXIT LOAF LOAF ONLY" spellcheck="false"></textarea>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span class="badge" id="stat-bytes">0 bytes</span>
+    <span class="badge" id="stat-words">0 words</span>
+    <span class="error-msg" id="error-msg"></span>
+  </div>
+</div>
+
+<div class="ref-section">
+  <details>
+    <summary>Word reference &mdash; all 256 mappings</summary>
+    <div class="ref-grid" id="ref-grid"></div>
+  </details>
+</div>
+
+<script>
+const WORDS = [
+  "ABLE","ACID","AERO","AGED","ALSO","APEX","ARCH","AREA",
+  "ARMS","ATOM","AUTO","AWAY","AXIS","BABY","BACK","BAND",
+  "BASH","BEAN","BEES","BILL","BLUE","BOAT","BOSS","BOZO",
+  "BREW","BULB","BURN","BUTT","CARE","CHAT","CITY","CLAM",
+  "CLOT","CLUB","COAX","COLA","COLD","COMA","COST","CUTE",
+  "DARK","DATE","DECK","DELI","DEMO","DIET","DISK","DOCK",
+  "DODO","DOGS","DRAW","DRIP","DRUM","DUCT","DUET","DULL",
+  "DUMB","EACH","ECHO","EDIT","ELSE","EMIT","EVEN","EXAM",
+  "EXIT","EYES","FALL","FARM","FAST","FAWN","FEET","FEUD",
+  "FILM","FISH","FLEX","FOLK","FOUL","FOXY","FROG","FUNK",
+  "FUZZ","GAME","GARB","GAZE","GERM","GIFT","GIVE","GLAD",
+  "GOOD","GRAB","GROW","HALO","HANK","HARD","HAVE","HEAP",
+  "HEEL","HELP","HIGH","HIKE","HOBO","HOLY","HOPE","HOUR",
+  "HUGE","HUNG","HURT","HYMN","ICON","IDEA","IDOL","IMPS",
+  "INCH","INTO","IRIS","IRON","ISLE","ITEM","JAZZ","JINX",
+  "JOIN","JOKE","JUMP","JUST","KALE","KEPT","KEYS","KICK",
+  "KILO","KIND","KITE","KIWI","LAMP","LAVA","LIMO","LINT",
+  "LION","LOAF","LONG","LOOK","LOUD","LUCK","MAIN","MELT",
+  "MILK","MIST","MOMS","MONK","MOVE","MUCH","MYTH","NEON",
+  "NERD","NEWS","NICE","NORM","NOUN","NOVA","NUKE","NUTS",
+  "OATS","OBEY","ODOR","OILS","ONLY","OOZE","OPEN","ORCA",
+  "OVAL","OVER","OWLS","OWNS","OXEN","PAID","PALM","PAPA",
+  "PIGS","PLAN","POEM","POLO","PONY","POOR","PUFF","PUMA",
+  "PYRO","QUID","RAYS","REDS","RENO","REST","RIDE","RIFF",
+  "RIMS","ROAD","ROMP","ROSE","RUIN","RUSH","SAGS","SALT",
+  "SCAB","SEAT","SEER","SHIP","SLUM","SNOW","SOAP","SODA",
+  "SOME","SPIT","STAR","STOP","SURE","SWAB","SWIM","TACO",
+  "TAIL","TAKE","TALK","TAXI","THEN","TIME","TOES","TOFU",
+  "TOMB","TOOL","TRAP","TREE","TRIM","TUBA","TYPE","TYPO",
+  "UGLY","USED","VEIL","VERY","VIBE","VOID","VOTE","WAIT",
+  "WASP","WAXY","WELL","WIFE","WILD","WINK","WOLF","WORK",
+  "YEAR","YETI","YOGA","ZAPS","ZEAL","ZINC","ZONE","ZOOM",
+];
+
+const WORD_TO_BYTE = new Map(WORDS.map((w, i) => [w, i]));
+
+function encode(bytes) {
+  return Array.from(bytes).map(b => WORDS[b]).join(" ");
+}
+
+function decode(mnemonic) {
+  const parts = mnemonic.trim().split(/\s+/).filter(Boolean);
+  const out = new Uint8Array(parts.length);
+  for (let i = 0; i < parts.length; i++) {
+    const w = parts[i].toUpperCase();
+    if (!WORD_TO_BYTE.has(w)) throw new Error(`Unknown word: "${parts[i]}"`);
+    out[i] = WORD_TO_BYTE.get(w);
+  }
+  return out;
+}
+
+function hexToBytes(hex) {
+  const cleaned = hex.replace(/^0x/i, "").replace(/[\s,_]/g, "");
+  if (!cleaned) return new Uint8Array(0);
+  if (cleaned.length % 2 !== 0) throw new Error("Hex string must have an even number of digits");
+  if (!/^[0-9a-fA-F]+$/.test(cleaned)) throw new Error("Invalid hex character");
+  const out = new Uint8Array(cleaned.length / 2);
+  for (let i = 0; i < cleaned.length; i += 2) {
+    out[i / 2] = parseInt(cleaned.slice(i, i + 2), 16);
+  }
+  return out;
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join(" ");
+}
+
+function textToBytes(text) {
+  return new TextEncoder().encode(text);
+}
+
+function bytesToText(bytes) {
+  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+}
+
+// --- State ---
+let format = "hex";
+let updating = false;
+
+const elBytes = document.getElementById("input-bytes");
+const elWords = document.getElementById("input-words");
+const elError = document.getElementById("error-msg");
+const elStatBytes = document.getElementById("stat-bytes");
+const elStatWords = document.getElementById("stat-words");
+const elLeftLabel = document.getElementById("left-label");
+
+function setError(msg) {
+  elError.textContent = msg || "";
+}
+
+function setStats(byteCount, wordCount) {
+  elStatBytes.textContent = `${byteCount} byte${byteCount === 1 ? "" : "s"}`;
+  elStatWords.textContent = `${wordCount} word${wordCount === 1 ? "" : "s"}`;
+}
+
+function fromBytes() {
+  if (updating) return;
+  updating = true;
+  setError("");
+  const raw = elBytes.value;
+  if (!raw.trim()) {
+    elWords.value = "";
+    setStats(0, 0);
+    updating = false;
+    return;
+  }
+  try {
+    const bytes = format === "hex" ? hexToBytes(raw) : textToBytes(raw);
+    elWords.value = encode(bytes);
+    setStats(bytes.length, bytes.length);
+  } catch (e) {
+    setError(e.message);
+    elWords.value = "";
+    setStats(0, 0);
+  }
+  updating = false;
+}
+
+function fromWords() {
+  if (updating) return;
+  updating = true;
+  setError("");
+  const raw = elWords.value;
+  if (!raw.trim()) {
+    elBytes.value = "";
+    setStats(0, 0);
+    updating = false;
+    return;
+  }
+  try {
+    const bytes = decode(raw);
+    if (format === "hex") {
+      elBytes.value = bytesToHex(bytes);
+    } else {
+      try {
+        elBytes.value = bytesToText(bytes);
+      } catch {
+        elBytes.value = bytesToHex(bytes);
+        setError("Decoded bytes are not valid UTF-8; showing hex instead");
+      }
+    }
+    setStats(bytes.length, bytes.length);
+  } catch (e) {
+    setError(e.message);
+    elBytes.value = "";
+    setStats(0, 0);
+  }
+  updating = false;
+}
+
+elBytes.addEventListener("input", fromBytes);
+elWords.addEventListener("input", fromWords);
+
+// Format toggle
+document.getElementById("format-toggle").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-format]");
+  if (!btn) return;
+  format = btn.dataset.format;
+  document.querySelectorAll("#format-toggle button").forEach(b => b.classList.toggle("active", b === btn));
+  elLeftLabel.textContent = format === "hex" ? "Hex bytes" : "UTF-8 text";
+  elBytes.placeholder = format === "hex"
+    ? "e.g. 48 65 6c 6c 6f\nor: 0xDEADBEEF"
+    : "e.g. Hello, world!";
+  // Re-run conversion from bytes if there's content there
+  if (elBytes.value.trim()) fromBytes();
+  else if (elWords.value.trim()) fromWords();
+});
+
+// Copy buttons
+function makeCopy(btnId, target) {
+  document.getElementById(btnId).addEventListener("click", function() {
+    if (!target.value) return;
+    navigator.clipboard.writeText(target.value).then(() => {
+      this.textContent = "Copied!";
+      this.classList.add("copied");
+      setTimeout(() => { this.textContent = "Copy"; this.classList.remove("copied"); }, 1500);
+    });
+  });
+}
+makeCopy("copy-left", elBytes);
+makeCopy("copy-right", elWords);
+
+// Clear buttons
+document.getElementById("clear-left").addEventListener("click", () => {
+  elBytes.value = "";
+  elWords.value = "";
+  setError("");
+  setStats(0, 0);
+});
+document.getElementById("clear-right").addEventListener("click", () => {
+  elWords.value = "";
+  elBytes.value = "";
+  setError("");
+  setStats(0, 0);
+});
+
+// Reference grid
+const grid = document.getElementById("ref-grid");
+WORDS.forEach((word, i) => {
+  const item = document.createElement("div");
+  item.className = "ref-item";
+  item.title = `Click to convert byte 0x${i.toString(16).padStart(2,"0").toUpperCase()}`;
+  item.innerHTML = `<span class="ref-byte">0x${i.toString(16).padStart(2,"0").toUpperCase()}</span><span class="ref-word">${word}</span>`;
+  item.addEventListener("click", () => {
+    const hex = i.toString(16).padStart(2,"0");
+    if (format === "hex") {
+      elBytes.value = elBytes.value ? elBytes.value + " " + hex : hex;
+    } else {
+      // append the actual character if printable, else switch to hex
+      if (i >= 0x20 && i < 0x7f) {
+        elBytes.value += String.fromCharCode(i);
+      } else {
+        // switch to hex mode
+        format = "hex";
+        document.querySelectorAll("#format-toggle button").forEach(b => {
+          b.classList.toggle("active", b.dataset.format === "hex");
+        });
+        elLeftLabel.textContent = "Hex bytes";
+        elBytes.value = elBytes.value ? elBytes.value + " " + hex : hex;
+      }
+    }
+    fromBytes();
+    elBytes.focus();
+  });
+  grid.appendChild(item);
+});
+</script>
+</body>
+</html>

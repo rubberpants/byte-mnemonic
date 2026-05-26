@@ -2,6 +2,12 @@
 
 Like the NATO phonetic alphabet, but for binary data. Each byte (0–255) maps to a unique four-letter word, enabling humans to read, speak, and transcribe binary data with minimal errors. Useful for writing and communicating long encryption keys or hashes.
 
+## Web Converter
+
+**[Try it live →](https://cofergus.github.io/byte-mnemonic/)** — bidirectional converter, works entirely in your browser with no backend.
+
+To enable for your own fork: go to **Settings → Pages → Source** and set it to deploy from the `main` branch, root folder.
+
 ## Why?
 
 Binary data is hard for humans to work with. Hexadecimal helps, but `4A 7F B2` is still easy to mishear or mistype. The NATO alphabet solved this for letters—"Alpha Bravo Charlie" is unambiguous over radio. Byte Mnemonic does the same for bytes.
