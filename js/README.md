@@ -16,18 +16,18 @@ import { encode, decode, encodeHex, decodeToHex, byteToWord, wordToByte } from '
 // Encode bytes to words
 const bytes = new Uint8Array([0x48, 0x65, 0x6C, 0x6C, 0x6F]);
 const words = encode(bytes);
-// => "FILM EXIT LOAF LOAF ONLY"
+// => "FILM HOLY ICON ICON IMPS"
 
 // Decode words back to bytes
-const decoded = decode("FILM EXIT LOAF LOAF ONLY");
+const decoded = decode("FILM HOLY ICON ICON IMPS");
 // => Uint8Array([0x48, 0x65, 0x6C, 0x6C, 0x6F])
 
 // Encode from hex string
 const wordsFromHex = encodeHex("48656C6C6F");
-// => "FILM EXIT LOAF LOAF ONLY"
+// => "FILM HOLY ICON ICON IMPS"
 
 // Decode to hex string
-const hex = decodeToHex("FILM EXIT LOAF LOAF ONLY");
+const hex = decodeToHex("FILM HOLY ICON ICON IMPS");
 // => "48656c6c6f"
 
 // Single byte/word conversion
@@ -41,9 +41,25 @@ wordToByte("ZOOM"); // => 255
 
 Encode a byte array to space-separated mnemonic words.
 
+### `encodeCompressed(bytes: Uint8Array | number[]): string`
+
+Like `encode`, but collapses runs of **3 or more** identical bytes into the
+word followed by a decimal repeat count (e.g. `ABLE 4`). Runs of 1 or 2 are
+emitted verbatim. Output is fully interoperable with `decode`.
+
+```javascript
+encodeCompressed(new Uint8Array([0, 0, 0, 0]))
+// => "ABLE 4"
+
+encodeCompressed(new Uint8Array([0, 0]))
+// => "ABLE ABLE"
+```
+
 ### `decode(mnemonic: string): Uint8Array`
 
-Decode mnemonic words back to bytes. Case-insensitive.
+Decode mnemonic words back to bytes. Case-insensitive. Also accepts the
+run-length form: a digit-only token immediately following a word repeats that
+word the given number of times in total (e.g. `ABLE 4` → four `ABLE` bytes).
 
 ### `encodeHex(hex: string): string`
 

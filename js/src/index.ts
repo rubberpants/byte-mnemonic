@@ -52,7 +52,7 @@ const WORD_TO_BYTE: Map<string, number> = new Map(
  *
  * @example
  * encode(new Uint8Array([0x48, 0x65, 0x6C, 0x6C, 0x6F]))
- * // => "FILM EXIT LOAF LOAF ONLY"
+ * // => "FILM HOLY ICON ICON IMPS"
  */
 export function encode(bytes: Uint8Array | number[]): string {
   const words: string[] = [];
@@ -66,32 +66,105 @@ export function encode(bytes: Uint8Array | number[]): string {
 }
 
 /**
+ * Encode a byte array using the run-length compression extension.
+ *
+ * Any run of **3 or more** identical bytes is written as the word followed by
+ * a decimal repeat count (e.g. `ABLE 4`). Runs of 1 or 2 are written
+ * verbatim. The output is fully interoperable with {@link decode}, which
+ * always understands both forms.
+ *
+ * @param bytes - The bytes to encode
+ * @returns Space-separated mnemonic words with run-length compression
+ *
+ * @example
+ * encodeCompressed(new Uint8Array([0, 0, 0, 0]))
+ * // => "ABLE 4"
+ *
+ * encodeCompressed(new Uint8Array([0, 0]))
+ * // => "ABLE ABLE"  (runs of 2 stay verbatim)
+ *
+ * encodeCompressed(new Uint8Array([0, 0, 0, 1, 1, 2]))
+ * // => "ABLE 3 ACID ACID AERO"
+ */
+export function encodeCompressed(bytes: Uint8Array | number[]): string {
+  const arr = bytes instanceof Uint8Array ? bytes : Uint8Array.from(bytes);
+  const out: string[] = [];
+  let i = 0;
+  while (i < arr.length) {
+    const b = arr[i];
+    if (b < 0 || b > 255) {
+      throw new RangeError(`Byte value out of range: ${b}`);
+    }
+    let run = 1;
+    while (i + run < arr.length && arr[i + run] === b) {
+      run++;
+    }
+    const word = WORDS[b];
+    if (run > 2) {
+      out.push(`${word} ${run}`);
+    } else {
+      for (let k = 0; k < run; k++) out.push(word);
+    }
+    i += run;
+  }
+  return out.join(" ");
+}
+
+/**
  * Decode a space-separated string of mnemonic words to a byte array.
+ *
+ * Decoding is case-insensitive. The run-length extension is always supported:
+ * a non-negative integer token following a word repeats that word the given
+ * number of times in total (e.g. `ABLE 4` expands to four `ABLE` bytes).
  *
  * @param mnemonic - Space-separated mnemonic words (case-insensitive)
  * @returns The decoded bytes
- * @throws Error if an unknown word is encountered
+ * @throws Error if an unknown word is encountered, or if a repeat count is
+ *   malformed, zero, has no preceding word, or directly follows another count.
  *
  * @example
- * decode("FILM EXIT LOAF LOAF ONLY")
+ * decode("FILM HOLY ICON ICON IMPS")
  * // => Uint8Array([0x48, 0x65, 0x6C, 0x6C, 0x6F])
+ *
+ * decode("ABLE 4")
+ * // => Uint8Array([0, 0, 0, 0])
  */
 export function decode(mnemonic: string): Uint8Array {
-  const words = mnemonic.trim().split(/\s+/);
-  if (words.length === 1 && words[0] === "") {
+  const trimmed = mnemonic.trim();
+  if (trimmed === "") {
     return new Uint8Array(0);
   }
+  const tokens = trimmed.split(/\s+/);
 
-  const bytes = new Uint8Array(words.length);
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i].toUpperCase();
-    const byte = WORD_TO_BYTE.get(word);
-    if (byte === undefined) {
-      throw new Error(`Unknown mnemonic word: "${words[i]}"`);
+  const bytes: number[] = [];
+  // The most recently emitted byte, set only immediately after a word token.
+  // Cleared after a repeat count is consumed so two counts cannot stack.
+  let prev: number | null = null;
+
+  for (const token of tokens) {
+    if (/^\d+$/.test(token)) {
+      const count = parseInt(token, 10);
+      if (!Number.isFinite(count) || count < 1) {
+        throw new Error(`Invalid repeat count: "${token}" must be at least 1`);
+      }
+      if (prev === null) {
+        throw new Error(`Invalid repeat count: "${token}" has no preceding word`);
+      }
+      for (let k = 1; k < count; k++) {
+        bytes.push(prev);
+      }
+      prev = null;
+    } else {
+      const upper = token.toUpperCase();
+      const byte = WORD_TO_BYTE.get(upper);
+      if (byte === undefined) {
+        throw new Error(`Unknown mnemonic word: "${token}"`);
+      }
+      bytes.push(byte);
+      prev = byte;
     }
-    bytes[i] = byte;
   }
-  return bytes;
+  return Uint8Array.from(bytes);
 }
 
 /**
@@ -102,7 +175,7 @@ export function decode(mnemonic: string): Uint8Array {
  *
  * @example
  * encodeHex("48656C6C6F")
- * // => "FILM EXIT LOAF LOAF ONLY"
+ * // => "FILM HOLY ICON ICON IMPS"
  */
 export function encodeHex(hex: string): string {
   // Remove 0x prefix and spaces
@@ -131,7 +204,7 @@ export function encodeHex(hex: string): string {
  * @returns Lowercase hexadecimal string
  *
  * @example
- * decodeToHex("FILM EXIT LOAF LOAF ONLY")
+ * decodeToHex("FILM HOLY ICON ICON IMPS")
  * // => "48656c6c6f"
  */
 export function decodeToHex(mnemonic: string): string {
@@ -176,5 +249,142 @@ export function wordToByte(word: string): number {
     throw new Error(`Unknown mnemonic word: "${word}"`);
   }
   return byte;
+}
+
+/**
+ * Encode an IPv4 address to mnemonic words (4 words).
+ *
+ * @param ip - Dotted-decimal IPv4 address (e.g. "192.168.1.1")
+ * @returns Space-separated mnemonic words
+ *
+ * @example
+ * encodeIPv4("192.168.1.1")
+ * // => "RIMS OVAL ACID ACID"
+ */
+export function encodeIPv4(ip: string): string {
+  const parts = ip.trim().split(".");
+  if (parts.length !== 4) {
+    throw new Error("Invalid IPv4 address: expected 4 octets");
+  }
+  const bytes = parts.map((p) => {
+    const n = parseInt(p, 10);
+    if (isNaN(n) || n < 0 || n > 255 || p.trim() === "" || String(n) !== p.trim()) {
+      throw new Error(`Invalid IPv4 octet: "${p}"`);
+    }
+    return n;
+  });
+  return encode(new Uint8Array(bytes));
+}
+
+/**
+ * Decode 4 mnemonic words to a dotted-decimal IPv4 address.
+ *
+ * @param mnemonic - Space-separated mnemonic words (exactly 4)
+ * @returns Dotted-decimal IPv4 address
+ *
+ * @example
+ * decodeToIPv4("RIMS OVAL ACID ACID")
+ * // => "192.168.1.1"
+ */
+export function decodeToIPv4(mnemonic: string): string {
+  const bytes = decode(mnemonic);
+  if (bytes.length !== 4) {
+    throw new Error(`Expected 4 words for IPv4, got ${bytes.length}`);
+  }
+  return Array.from(bytes).join(".");
+}
+
+function parseIPv6Bytes(ip: string): Uint8Array {
+  const halves = ip.split("::");
+  if (halves.length > 2) {
+    throw new Error("Invalid IPv6: multiple '::'");
+  }
+
+  let groups: string[];
+  if (halves.length === 2) {
+    const left = halves[0] ? halves[0].split(":") : [];
+    const right = halves[1] ? halves[1].split(":") : [];
+    const missing = 8 - left.length - right.length;
+    if (missing < 0) {
+      throw new Error("Invalid IPv6: too many groups");
+    }
+    groups = [...left, ...Array(missing).fill("0"), ...right];
+  } else {
+    groups = ip.split(":");
+    if (groups.length !== 8) {
+      throw new Error("Invalid IPv6: expected 8 groups or use '::' for zero compression");
+    }
+  }
+
+  const bytes = new Uint8Array(16);
+  for (let i = 0; i < 8; i++) {
+    if (!/^[0-9a-fA-F]{1,4}$/.test(groups[i])) {
+      throw new Error(`Invalid IPv6 group: "${groups[i]}"`);
+    }
+    const val = parseInt(groups[i], 16);
+    bytes[i * 2] = (val >> 8) & 0xff;
+    bytes[i * 2 + 1] = val & 0xff;
+  }
+  return bytes;
+}
+
+function formatIPv6Bytes(bytes: Uint8Array): string {
+  const groups: number[] = [];
+  for (let i = 0; i < 16; i += 2) {
+    groups.push((bytes[i] << 8) | bytes[i + 1]);
+  }
+
+  let bestStart = -1, bestLen = 0, curStart = -1, curLen = 0;
+  for (let i = 0; i <= 8; i++) {
+    if (i < 8 && groups[i] === 0) {
+      if (curStart === -1) { curStart = i; curLen = 0; }
+      curLen++;
+    } else {
+      if (curLen >= 2 && curLen > bestLen) { bestStart = curStart; bestLen = curLen; }
+      curStart = -1; curLen = 0;
+    }
+  }
+
+  if (bestStart === -1) {
+    return groups.map((g) => g.toString(16)).join(":");
+  }
+  const left = groups.slice(0, bestStart).map((g) => g.toString(16)).join(":");
+  const right = groups.slice(bestStart + bestLen).map((g) => g.toString(16)).join(":");
+  return (left ? left + "::" : "::") + right;
+}
+
+/**
+ * Encode an IPv6 address to mnemonic words (16 words).
+ *
+ * Accepts full and compressed IPv6 notation.
+ *
+ * @param ip - IPv6 address (e.g. "2001:db8::1" or "::1")
+ * @returns Space-separated mnemonic words
+ *
+ * @example
+ * encodeIPv6("::1")
+ * // => "ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ACID"
+ */
+export function encodeIPv6(ip: string): string {
+  const bytes = parseIPv6Bytes(ip.trim());
+  return encode(bytes);
+}
+
+/**
+ * Decode 16 mnemonic words to a compressed IPv6 address.
+ *
+ * @param mnemonic - Space-separated mnemonic words (exactly 16)
+ * @returns Compressed IPv6 address string
+ *
+ * @example
+ * decodeToIPv6("ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ABLE ACID")
+ * // => "::1"
+ */
+export function decodeToIPv6(mnemonic: string): string {
+  const bytes = decode(mnemonic);
+  if (bytes.length !== 16) {
+    throw new Error(`Expected 16 words for IPv6, got ${bytes.length}`);
+  }
+  return formatIPv6Bytes(bytes);
 }
 

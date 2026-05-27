@@ -15,7 +15,7 @@ Binary data is hard for humans to work with. Hexadecimal helps, but `4A 7F B2` i
 **Example:** The bytes `[0x00, 0x48, 0x65, 0x6C, 0x6C, 0x6F]` become:
 
 ```
-ABLE DOCK EXIT LOAF LOAF ONLY
+ABLE FILM HOLY ICON ICON IMPS
 ```
 
 ## Word Selection Criteria
@@ -67,18 +67,18 @@ import { encode, decode, encodeHex, decodeToHex } from 'byte-mnemonic';
 // Encode bytes to words
 const bytes = new Uint8Array([0x48, 0x65, 0x6C, 0x6C, 0x6F]);
 const words = encode(bytes);
-// => "FILM EXIT LOAF LOAF ONLY"
+// => "FILM HOLY ICON ICON IMPS"
 
 // Decode words back to bytes
-const decoded = decode("FILM EXIT LOAF LOAF ONLY");
+const decoded = decode("FILM HOLY ICON ICON IMPS");
 // => Uint8Array([0x48, 0x65, 0x6C, 0x6C, 0x6F])
 
 // Encode from hex string
 const wordsFromHex = encodeHex("48656C6C6F");
-// => "FILM EXIT LOAF LOAF ONLY"
+// => "FILM HOLY ICON ICON IMPS"
 
 // Decode to hex string
-const hex = decodeToHex("FILM EXIT LOAF LOAF ONLY");
+const hex = decodeToHex("FILM HOLY ICON ICON IMPS");
 // => "48656c6c6f"
 ```
 
@@ -95,18 +95,18 @@ use byte_mnemonic::{encode, decode, encode_hex, decode_to_hex};
 // Encode bytes to words
 let bytes = vec![0x48, 0x65, 0x6C, 0x6C, 0x6F];
 let words = encode(&bytes);
-// => "FILM EXIT LOAF LOAF ONLY"
+// => "FILM HOLY ICON ICON IMPS"
 
 // Decode words back to bytes
-let decoded = decode("FILM EXIT LOAF LOAF ONLY").unwrap();
+let decoded = decode("FILM HOLY ICON ICON IMPS").unwrap();
 // => vec![0x48, 0x65, 0x6C, 0x6C, 0x6F]
 
 // Encode from hex string
 let words_from_hex = encode_hex("48656C6C6F").unwrap();
-// => "FILM EXIT LOAF LOAF ONLY"
+// => "FILM HOLY ICON ICON IMPS"
 
 // Decode to hex string
-let hex = decode_to_hex("FILM EXIT LOAF LOAF ONLY").unwrap();
+let hex = decode_to_hex("FILM HOLY ICON ICON IMPS").unwrap();
 // => "48656c6c6f"
 ```
 
@@ -115,6 +115,24 @@ let hex = decode_to_hex("FILM EXIT LOAF LOAF ONLY").unwrap();
 - Words are separated by a single space
 - Words are uppercase (decoding is case-insensitive)
 - One word per byte, in order
+
+### Optional Run-Length Extension
+
+For data containing long runs of identical bytes (zero-padding, repeated fill
+bytes, an all-zero IPv6 address, etc.), an opt-in run-length form is supported:
+any run of **3 or more** identical words may be written as the word followed by
+a decimal repeat count. Runs of 1 or 2 are written verbatim.
+
+```text
+ABLE ABLE ABLE ABLE         -> ABLE 4
+ABLE ABLE                   -> ABLE ABLE        (unchanged; 2 is not "more than 2")
+ABLE ACID ACID AERO AERO AERO -> ABLE ACID ACID AERO 3
+```
+
+Both forms are interoperable: encoders may emit either, and decoders always
+understand both. Producing the compressed form is opt-in (`encode_compressed`
+in Rust, `encodeCompressed` in JavaScript, or the **Compress repeats** toggle
+in the web converter); consuming it is automatic.
 
 ## Applications
 

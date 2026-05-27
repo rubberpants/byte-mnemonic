@@ -18,18 +18,18 @@ use byte_mnemonic::{encode, decode, encode_hex, decode_to_hex, byte_to_word, wor
 
 // Encode bytes to words
 let words = encode(&[0x48, 0x65, 0x6C, 0x6C, 0x6F]);
-assert_eq!(words, "FILM EXIT LOAF LOAF ONLY");
+assert_eq!(words, "FILM HOLY ICON ICON IMPS");
 
 // Decode words back to bytes
-let bytes = decode("FILM EXIT LOAF LOAF ONLY").unwrap();
+let bytes = decode("FILM HOLY ICON ICON IMPS").unwrap();
 assert_eq!(bytes, vec![0x48, 0x65, 0x6C, 0x6C, 0x6F]);
 
 // Encode from hex string
 let words = encode_hex("48656C6C6F").unwrap();
-assert_eq!(words, "FILM EXIT LOAF LOAF ONLY");
+assert_eq!(words, "FILM HOLY ICON ICON IMPS");
 
 // Decode to hex string
-let hex = decode_to_hex("FILM EXIT LOAF LOAF ONLY").unwrap();
+let hex = decode_to_hex("FILM HOLY ICON ICON IMPS").unwrap();
 assert_eq!(hex, "48656c6c6f");
 
 // Single byte/word conversion
@@ -43,9 +43,22 @@ assert_eq!(word_to_byte("ZOOM"), Some(255));
 
 Encode a byte slice to space-separated mnemonic words.
 
+### `encode_compressed(bytes: &[u8]) -> String`
+
+Like `encode`, but collapses runs of **3 or more** identical bytes into the
+word followed by a decimal repeat count (e.g. `ABLE 4`). Runs of 1 or 2 are
+emitted verbatim. Output is fully interoperable with `decode`.
+
+```rust
+assert_eq!(encode_compressed(&[0, 0, 0, 0]), "ABLE 4");
+assert_eq!(encode_compressed(&[0, 0]),       "ABLE ABLE");
+```
+
 ### `decode(mnemonic: &str) -> Result<Vec<u8>, DecodeError>`
 
-Decode mnemonic words back to bytes. Case-insensitive.
+Decode mnemonic words back to bytes. Case-insensitive. Also accepts the
+run-length form: a digit-only token immediately following a word repeats that
+word the given number of times in total (e.g. `ABLE 4` → four `ABLE` bytes).
 
 ### `encode_hex(hex: &str) -> Result<String, DecodeError>`
 
@@ -73,8 +86,10 @@ The crate uses `DecodeError` for error cases:
 
 ```rust
 pub enum DecodeError {
-    UnknownWord(String),  // Unrecognized mnemonic word
-    InvalidHex(String),   // Invalid hexadecimal input
+    UnknownWord(String),    // Unrecognized mnemonic word
+    InvalidHex(String),     // Invalid hexadecimal input
+    InvalidAddress(String), // Invalid IPv4/IPv6 input
+    InvalidRepeat(String),  // Malformed run-length count
 }
 ```
 
