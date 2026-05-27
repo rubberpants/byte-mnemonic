@@ -4,7 +4,7 @@ Like the NATO phonetic alphabet, but for binary data. Each byte (0–255) maps t
 
 ## Web Converter
 
-**[Try it live →](https://cofergus.github.io/byte-mnemonic/)** — bidirectional converter, works entirely in your browser with no backend.
+**[Try it live →](https://rubberpants.github.io/byte-mnemonic/)** — bidirectional converter, works entirely in your browser with no backend.
 
 To enable for your own fork: go to **Settings → Pages → Source** and set it to deploy from the `main` branch, root folder.
 
